@@ -1,0 +1,135 @@
+# WARD
+
+**WARD Assists Restarting Daemons** — лёгкий сторожевой сервис для OpenRC.
+
+Периодически проверяет статус сервисов через `rc-service` и автоматически перезапускает упавшие с настраиваемой задержкой и лимитом попыток.
+
+## Возможности
+
+- Периодическая проверка статуса сервисов
+- Автоматический перезапуск при падении
+- Защита от restart-спирали через cooldown
+- Лимит перезапусков на каждый сервис
+- YAML-конфигурация
+- Логирование в файл или stdout
+- Корректное завершение по SIGINT/SIGTERM
+- Hot reload конфигурации (SIGHUP)
+- Telegram уведомления
+- Prometheus метрики
+- CLI команды (status, list, init)
+
+## Установка
+
+### Из исходников
+
+```sh
+go build -o ward ./cmd/ward/
+sudo install -m 755 ward /usr/local/bin/ward
+```
+
+### Через скрипт установки
+
+```sh
+sudo ./install.sh
+```
+
+### Через ebuild (Gentoo overlay)
+
+```sh
+emerge app-admin/ward
+```
+
+## Конфигурация
+
+Путь по умолчанию: `/etc/ward/config.yaml`
+
+```yaml
+check_interval: 10s
+log_file: /var/log/ward.log
+
+services:
+  - name: nginx
+    restart_on_fail: true
+    max_restarts: 3
+    restart_cooldown: 30s
+
+  - name: redis
+    restart_on_fail: true
+    max_restarts: 5
+    restart_cooldown: 10s
+
+  - name: sshd
+    restart_on_fail: false
+```
+
+### Параметры
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| `check_interval` | duration | 10s | Интервал проверки сервисов |
+| `log_file` | string | stdout | Путь к файлу логов |
+| `services[].name` | string | | Имя сервиса в OpenRC |
+| `services[].restart_on_fail` | bool | false | Автоперезапуск при падении |
+| `services[].max_restarts` | int | 3 | Макс. количество перезапусков |
+| `services[].restart_cooldown` | duration | 30s | Минимальный интервал между перезапусками |
+
+### Метрики
+
+```yaml
+metrics:
+  enabled: true
+  listen: ":9090"
+```
+
+Эндпоинты:
+- `GET /metrics` — Prometheus метрики
+- `GET /health` — Проверка работоспособности
+
+Доступные метрики:
+- `ward_service_status` — Текущий статус (1=работает, 0=остановлен)
+- `ward_service_restarts_total` — Общее количество перезапусков
+- `ward_service_restart_failures_total` — Количество неудачных перезапусков
+- `ward_service_restart_count` — Текущее количество перезапусков
+- `ward_service_max_restarts` — Настроенный лимит перезапусков
+- `ward_service_last_restart_timestamp` — Unix timestamp последнего перезапуска
+- `ward_service_cooldown_seconds` — Настроенный cooldown
+- `ward_service_restart_on_fail` — Автоперезапуск включен (1=да, 0=нет)
+- `ward_config_services` — Количество настроенных сервисов
+- `ward_check_interval_seconds` — Интервал проверки
+
+## Использование
+
+```sh
+# Запуск с конфигом по умолчанию
+sudo ward
+
+# Запуск с произвольным конфигом
+sudo ward -config /path/to/config.yaml
+
+# Вывод версии
+ward -version
+```
+
+## Сервис OpenRC
+
+```sh
+sudo rc-service ward start
+sudo rc-update add ward default
+```
+
+## Сборка
+
+```sh
+# Обычная сборка
+go build -o ward ./cmd/ward/
+
+# Сборка с версией
+go build -ldflags "-s -w -X main.version=v0.1.0" -o ward ./cmd/ward/
+
+# Кросс-компиляция
+GOOS=linux GOARCH=arm64 go build -o ward-arm64 ./cmd/ward/
+```
+
+## Лицензия
+
+[MIT](LICENSE)

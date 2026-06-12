@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Get version
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Build binaries
+        run: |
+          VERSION="${{ steps.version.outputs.tag }}"
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION}" -o ward-linux-amd64 ./cmd/ward/
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION}" -o ward-linux-arm64 ./cmd/ward/
+
+      - name: Create archives
+        run: |
+          VERSION="${{ steps.version.outputs.tag }}"
+          tar czf "${VERSION}-src.tar.gz" \
+            --exclude='.git' \
+            --exclude='.github' \
+            -C .. "$(basename $PWD)"
+          tar czf "ward-${VERSION}-linux-amd64.tar.gz" ward-linux-amd64 config.yaml ward.initd LICENSE
+          tar czf "ward-${VERSION}-linux-arm64.tar.gz" ward-linux-arm64 config.yaml ward.initd LICENSE
+          sha256sum ward-linux-amd64 ward-linux-arm64 "${VERSION}-src.tar.gz" "ward-${VERSION}-linux-amd64.tar.gz" "ward-${VERSION}-linux-arm64.tar.gz" > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            ${{ steps.version.outputs.tag }}-src.tar.gz
+            ward-${{ steps.version.outputs.tag }}-linux-amd64.tar.gz
+            ward-${{ steps.version.outputs.tag }}-linux-arm64.tar.gz
+            checksums.txt

@@ -1,0 +1,67 @@
+#!/sbin/openrc-run
+
+description="Ward - OpenRC service watchdog"
+
+WARD="${WARD:-/usr/local/bin/ward}"
+WARD_CONFIG="${WARD_CONFIG:-/etc/ward/config.yaml}"
+WARD_LOG="${WARD_LOG:-/var/log/ward.log}"
+WARD_PID="${WARD_PID:-/run/ward.pid}"
+
+command="${WARD}"
+command_args="-config ${WARD_CONFIG}"
+command_user="root"
+command_background=true
+pidfile="${WARD_PID}"
+output_log="${WARD_LOG}"
+error_log="${WARD_LOG}"
+
+export WARD_CONFIG
+
+depend() {
+    need localmount
+    after firewall
+    keyword -stop
+}
+
+start_pre() {
+    if [ ! -x "${WARD}" ]; then
+        eerror "Binary not found: ${WARD}"
+        return 1
+    fi
+
+    if [ ! -f "${WARD_CONFIG}" ]; then
+        eerror "Config not found: ${WARD_CONFIG}"
+        return 1
+    fi
+
+    local dir
+    dir=$(dirname "${WARD_LOG}")
+    if [ ! -d "${dir}" ]; then
+        mkdir -p "${dir}" || return 1
+    fi
+
+    return 0
+}
+
+stop() {
+    if [ -f "${WARD_PID}" ]; then
+        ebegin "Stopping ward"
+        start-stop-daemon --stop --pidfile "${WARD_PID}"
+        local ret=$?
+        eend $ret
+        return $ret
+    fi
+    return 0
+}
+
+reload() {
+    if [ -f "${WARD_PID}" ]; then
+        ebegin "Reloading ward configuration"
+        start-stop-daemon --signal HUP --pidfile "${WARD_PID}"
+        local ret=$?
+        eend $ret
+        return $ret
+    fi
+    einfo "ward is not running, starting with new config"
+    service ${RC_SVCNAME} start
+}

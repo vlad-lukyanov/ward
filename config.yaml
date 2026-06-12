@@ -1,0 +1,31 @@
+check_interval: 10s
+log_file: /var/log/ward.log
+
+notification:
+  enabled: false
+  telegram:
+    bot_token: ""
+    chat_id: ""
+
+metrics:
+  enabled: false
+  listen: ":9090"
+
+services:
+  - name: nginx
+    restart_on_fail: true
+    max_restarts: 3
+    restart_cooldown: 30s
+
+  - name: redis
+    restart_on_fail: true
+    max_restarts: 5
+    restart_cooldown: 10s
+
+  - name: postgresql
+    restart_on_fail: true
+    max_restarts: 3
+    restart_cooldown: 60s
+
+  - name: sshd
+    restart_on_fail: false
