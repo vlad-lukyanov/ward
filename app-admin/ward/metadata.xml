@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<email>your@email.com</email>
+	<name>Your Name</name>
+	<longdescription>
+		WARD (WARD Assists Restarting Daemons) - service watchdog for OpenRC
+		with automatic restart on failure. Checks service status via rc-service
+		and restarts failed services with configurable cooldown and max restart limits.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">vlad-lukyanov/ward</remote-id>
+	</upstream>
+</pkgmetadata>
