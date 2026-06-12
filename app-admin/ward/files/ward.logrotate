@@ -1,0 +1,11 @@
+/var/log/ward.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    postrotate
+        test -r /run/ward.pid && kill -USR1 $(head -n 1 /run/ward.pid) 2>/dev/null || true
+    endscript
+}

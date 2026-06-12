@@ -14,6 +14,8 @@
 - Логирование в файл или stdout
 - Корректное завершение по SIGINT/SIGTERM
 - Hot reload конфигурации (SIGHUP)
+- Ротация логов без перезапуска (SIGUSR1)
+- PID-файл для отслеживания процесса
 - Telegram уведомления
 - Prometheus метрики (по каждому сервису)
 - CLI команды (status, list, init)
@@ -88,6 +90,13 @@ services:
 | `services[].max_restarts` | int | 3 | Макс. количество перезапусков |
 | `services[].restart_cooldown` | duration | 30s | Минимальный интервал между перезапусками |
 
+### Флаги CLI
+
+| Флаг | По умолчанию | Описание |
+|------|--------------|----------|
+| `-config` | `/etc/ward/config.yaml` | Путь к конфигу |
+| `-pid` | `/run/ward.pid` | Путь к PID-файлу |
+
 ## CLI команды
 
 ```sh
@@ -141,6 +150,18 @@ metrics:
 - `GET /metrics` — Prometheus метрики
 - `GET /health` — Проверка работоспособности
 
+Пример конфига Prometheus:
+
+```yaml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "ward"
+    static_configs:
+      - targets: ["localhost:9090"]
+```
+
 Доступные метрики:
 - `ward_service_status` — Текущий статус (1=работает, 0=остановлен)
 - `ward_service_restarts_total` — Общее количество перезапусков
@@ -152,6 +173,30 @@ metrics:
 - `ward_service_restart_on_fail` — Автоперезапуск включен (1=да, 0=нет)
 - `ward_config_services` — Количество настроенных сервисов
 - `ward_check_interval_seconds` — Интервал проверки
+
+## Ротация логов
+
+Ward поддерживает ротацию логов через `SIGUSR1` без перезапуска. Отправьте сигнал для переоткрытия лог-файла:
+
+```sh
+kill -USR1 $(cat /run/ward.pid)
+```
+
+Пример конфига logrotate (устанавливается ebuild'ом в `/etc/logrotate.d/ward`):
+
+```
+/var/log/ward.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    postrotate
+        kill -USR1 $(cat /run/ward.pid) 2>/dev/null || true
+    endscript
+}
+```
 
 ## Использование
 

@@ -8,7 +8,7 @@ WARD_LOG="${WARD_LOG:-/var/log/ward.log}"
 WARD_PID="${WARD_PID:-/run/ward.pid}"
 
 command="${WARD}"
-command_args="-config ${WARD_CONFIG}"
+command_args="-config ${WARD_CONFIG} -pid ${WARD_PID}"
 command_user="root"
 command_background=true
 pidfile="${WARD_PID}"

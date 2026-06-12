@@ -1,5 +1,5 @@
 # Binaries
-ward
+/ward
 *.exe
 *.dll
 *.so

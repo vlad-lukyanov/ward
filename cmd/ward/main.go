@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -57,6 +58,7 @@ Commands:
 
 Flags:
   -config    Config file path (default: /etc/ward/config.yaml)
+  -pid       PID file path (default: /run/ward.pid)
   -version   Print version and exit
 
 Examples:
@@ -171,10 +173,13 @@ func main() {
 	}
 
 	configPath := "/etc/ward/config.yaml"
+	pidPath := "/run/ward.pid"
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "-config" && i+1 < len(os.Args) {
 			configPath = os.Args[i+1]
-			break
+		}
+		if os.Args[i] == "-pid" && i+1 < len(os.Args) {
+			pidPath = os.Args[i+1]
 		}
 	}
 
@@ -197,10 +202,32 @@ func main() {
 		logger = log.New(os.Stdout, "", log.LstdFlags)
 	}
 
+	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(os.Getpid())+"\n"), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "error writing pid file: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.Remove(pidPath)
+
 	stop := make(chan os.Signal, 1)
 	reload := make(chan os.Signal, 1)
+	rotate := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	signal.Notify(reload, syscall.SIGHUP)
+	signal.Notify(rotate, syscall.SIGUSR1)
+
+	if cfg.LogFile != "" {
+		go func() {
+			for range rotate {
+				f, err := os.OpenFile(cfg.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					logger.Printf("log rotate: failed to reopen %s: %v", cfg.LogFile, err)
+					continue
+				}
+				logger.SetOutput(f)
+				logger.Printf("log rotated")
+			}
+		}()
+	}
 
 	logger.Printf("ward started, checking %d services every %s", len(cfg.Services), cfg.CheckInterval)
 

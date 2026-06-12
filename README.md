@@ -14,6 +14,8 @@ Periodically checks service status via `rc-service` and automatically restarts f
 - Logging to file or stdout
 - Graceful shutdown on SIGINT/SIGTERM
 - Hot reload configuration (SIGHUP)
+- Log rotation support (SIGUSR1)
+- PID file for process tracking
 - Telegram notifications
 - Prometheus metrics (per-service)
 - CLI commands (status, list, init)
@@ -88,6 +90,13 @@ services:
 | `services[].max_restarts` | int | 3 | Max restart attempts |
 | `services[].restart_cooldown` | duration | 30s | Min time between restarts |
 
+### CLI Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-config` | `/etc/ward/config.yaml` | Config file path |
+| `-pid` | `/run/ward.pid` | PID file path |
+
 ## CLI Commands
 
 ```sh
@@ -141,6 +150,18 @@ Endpoints:
 - `GET /metrics` — Prometheus metrics
 - `GET /health` — Health check
 
+Example Prometheus config:
+
+```yaml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "ward"
+    static_configs:
+      - targets: ["localhost:9090"]
+```
+
 Available metrics:
 - `ward_service_status` — Current status (1=running, 0=stopped)
 - `ward_service_restarts_total` — Total restarts
@@ -152,6 +173,30 @@ Available metrics:
 - `ward_service_restart_on_fail` — Auto-restart enabled (1=yes, 0=no)
 - `ward_config_services` — Number of configured services
 - `ward_check_interval_seconds` — Check interval
+
+## Log Rotation
+
+Ward supports log rotation via `SIGUSR1` without restart. Send the signal to reopen the log file:
+
+```sh
+kill -USR1 $(cat /run/ward.pid)
+```
+
+Example logrotate config (installed via ebuild to `/etc/logrotate.d/ward`):
+
+```
+/var/log/ward.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    postrotate
+        kill -USR1 $(cat /run/ward.pid) 2>/dev/null || true
+    endscript
+}
+```
 
 ## Usage
 
