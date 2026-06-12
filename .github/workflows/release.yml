@@ -33,10 +33,7 @@ jobs:
       - name: Create archives
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
-          tar czf "${VERSION}-src.tar.gz" \
-            --exclude='.git' \
-            --exclude='.github' \
-            -C .. "$(basename $PWD)"
+          git archive --format=tar.gz --prefix="ward-${VERSION}/" -o "${VERSION}-src.tar.gz" HEAD
           tar czf "ward-${VERSION}-linux-amd64.tar.gz" ward-linux-amd64 config.yaml ward.initd LICENSE
           tar czf "ward-${VERSION}-linux-arm64.tar.gz" ward-linux-arm64 config.yaml ward.initd LICENSE
           sha256sum ward-linux-amd64 ward-linux-arm64 "${VERSION}-src.tar.gz" "ward-${VERSION}-linux-amd64.tar.gz" "ward-${VERSION}-linux-arm64.tar.gz" > checksums.txt
