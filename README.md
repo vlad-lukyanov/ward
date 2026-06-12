@@ -15,7 +15,7 @@ Periodically checks service status via `rc-service` and automatically restarts f
 - Graceful shutdown on SIGINT/SIGTERM
 - Hot reload configuration (SIGHUP)
 - Telegram notifications
-- Prometheus metrics
+- Prometheus metrics (per-service)
 - CLI commands (status, list, init)
 
 ## Installation
@@ -47,6 +47,16 @@ Default path: `/etc/ward/config.yaml`
 check_interval: 10s
 log_file: /var/log/ward.log
 
+notification:
+  enabled: false
+  telegram:
+    bot_token: ""
+    chat_id: ""
+
+metrics:
+  enabled: false
+  listen: ":9090"
+
 services:
   - name: nginx
     restart_on_fail: true
@@ -68,12 +78,58 @@ services:
 |-------|------|---------|-------------|
 | `check_interval` | duration | 10s | How often to check services |
 | `log_file` | string | stdout | Log file path |
+| `notification.enabled` | bool | false | Enable Telegram notifications |
+| `notification.telegram.bot_token` | string | | Telegram bot token |
+| `notification.telegram.chat_id` | string | | Telegram chat ID |
+| `metrics.enabled` | bool | false | Enable Prometheus metrics |
+| `metrics.listen` | string | | Listen address (e.g. `:9090`) |
 | `services[].name` | string | | OpenRC service name |
 | `services[].restart_on_fail` | bool | false | Auto-restart on failure |
 | `services[].max_restarts` | int | 3 | Max restart attempts |
 | `services[].restart_cooldown` | duration | 30s | Min time between restarts |
 
-### Metrics
+## CLI Commands
+
+```sh
+# Show status of all services
+ward status
+
+# List monitored services
+ward list
+
+# Generate default config
+ward init > /etc/ward/config.yaml
+
+# Print version
+ward -version
+
+# Show help
+ward -h
+```
+
+## Notification
+
+### Telegram
+
+1. Create bot via [@BotFather](https://t.me/BotFather)
+2. Get bot token
+3. Add bot to chat/group
+4. Get chat_id via `https://api.telegram.org/bot<TOKEN>/getUpdates`
+
+```yaml
+notification:
+  enabled: true
+  telegram:
+    bot_token: "123456:ABC-DEF..."
+    chat_id: "-1001234567890"
+```
+
+Notifications sent on:
+- Service restart: `Restarted (attempt 2/3)`
+- Max restarts exceeded: `Exceeded max restarts (3), no longer restarting`
+- Restart failed: `Restart failed: exit status 1`
+
+## Metrics
 
 ```yaml
 metrics:
@@ -105,15 +161,14 @@ sudo ward
 
 # Run with custom config
 sudo ward -config /path/to/config.yaml
-
-# Print version
-ward -version
 ```
 
-## OpenRC service
+## OpenRC Service
 
 ```sh
 sudo rc-service ward start
+sudo rc-service ward stop
+sudo rc-service ward reload
 sudo rc-update add ward default
 ```
 

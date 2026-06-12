@@ -15,7 +15,7 @@
 - Корректное завершение по SIGINT/SIGTERM
 - Hot reload конфигурации (SIGHUP)
 - Telegram уведомления
-- Prometheus метрики
+- Prometheus метрики (по каждому сервису)
 - CLI команды (status, list, init)
 
 ## Установка
@@ -47,6 +47,16 @@ emerge app-admin/ward
 check_interval: 10s
 log_file: /var/log/ward.log
 
+notification:
+  enabled: false
+  telegram:
+    bot_token: ""
+    chat_id: ""
+
+metrics:
+  enabled: false
+  listen: ":9090"
+
 services:
   - name: nginx
     restart_on_fail: true
@@ -68,12 +78,58 @@ services:
 |----------|-----|--------------|----------|
 | `check_interval` | duration | 10s | Интервал проверки сервисов |
 | `log_file` | string | stdout | Путь к файлу логов |
+| `notification.enabled` | bool | false | Включить Telegram уведомления |
+| `notification.telegram.bot_token` | string | | Токен Telegram бота |
+| `notification.telegram.chat_id` | string | | ID чата Telegram |
+| `metrics.enabled` | bool | false | Включить Prometheus метрики |
+| `metrics.listen` | string | | Адрес для прослушивания (напр. `:9090`) |
 | `services[].name` | string | | Имя сервиса в OpenRC |
 | `services[].restart_on_fail` | bool | false | Автоперезапуск при падении |
 | `services[].max_restarts` | int | 3 | Макс. количество перезапусков |
 | `services[].restart_cooldown` | duration | 30s | Минимальный интервал между перезапусками |
 
-### Метрики
+## CLI команды
+
+```sh
+# Показать статус всех сервисов
+ward status
+
+# Список отслеживаемых сервисов
+ward list
+
+# Сгенерировать конфиг по умолчанию
+ward init > /etc/ward/config.yaml
+
+# Показать версию
+ward -version
+
+# Показать справку
+ward -h
+```
+
+## Уведомления
+
+### Telegram
+
+1. Создайте бота через [@BotFather](https://t.me/BotFather)
+2. Получите токен бота
+3. Добавьте бота в чат/группу
+4. Узнайте chat_id через `https://api.telegram.org/bot<TOKEN>/getUpdates`
+
+```yaml
+notification:
+  enabled: true
+  telegram:
+    bot_token: "123456:ABC-DEF..."
+    chat_id: "-1001234567890"
+```
+
+Уведомления отправляются при:
+- Перезапуске сервиса: `Restarted (attempt 2/3)`
+- Превышении лимита перезапусков: `Exceeded max restarts (3), no longer restarting`
+- Неудачном перезапуске: `Restart failed: exit status 1`
+
+## Метрики
 
 ```yaml
 metrics:
@@ -105,15 +161,14 @@ sudo ward
 
 # Запуск с произвольным конфигом
 sudo ward -config /path/to/config.yaml
-
-# Вывод версии
-ward -version
 ```
 
 ## Сервис OpenRC
 
 ```sh
 sudo rc-service ward start
+sudo rc-service ward stop
+sudo rc-service ward reload
 sudo rc-update add ward default
 ```
 
