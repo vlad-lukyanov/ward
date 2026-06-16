@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WARD — Service Watchdog for OpenRC</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-dim: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --red: #f85149;
+            --yellow: #d29922;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+        /* Nav */
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 100;
+            background: rgba(13,17,23,0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        nav .container {
+            display: flex; align-items: center; justify-content: space-between;
+            height: 60px;
+        }
+        .logo { font-size: 1.2rem; font-weight: 700; color: var(--accent); text-decoration: none; }
+        .nav-links { display: flex; gap: 24px; align-items: center; }
+        .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text); }
+
+        .lang-toggle {
+            display: flex; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 6px; overflow: hidden;
+        }
+        .lang-toggle button {
+            background: none; border: none; color: var(--text-dim); padding: 6px 14px;
+            cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+        }
+        .lang-toggle button.active { background: var(--accent); color: #fff; }
+
+        /* Hero */
+        .hero {
+            padding: 140px 0 80px;
+            text-align: center;
+            background: radial-gradient(ellipse at 50% 0%, rgba(88,166,255,0.08) 0%, transparent 60%);
+        }
+        .hero h1 {
+            font-size: 3.5rem; font-weight: 800; margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero .subtitle {
+            font-size: 1.25rem; color: var(--text-dim); max-width: 600px; margin: 0 auto 32px;
+        }
+        .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 24px; border-radius: 8px; font-size: 1rem;
+            font-weight: 600; text-decoration: none; transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #79c0ff; }
+        .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--text-dim); }
+
+        /* Section */
+        section { padding: 80px 0; }
+        .section-title {
+            font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 48px;
+        }
+
+        /* Features grid */
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .feature-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 28px; transition: border-color 0.2s;
+        }
+        .feature-card:hover { border-color: var(--accent); }
+        .feature-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .feature-card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+        .feature-card p { color: var(--text-dim); font-size: 0.95rem; }
+
+        /* Code block */
+        .code-block {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 20px 24px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9rem;
+            overflow-x: auto; margin: 16px 0;
+        }
+        .code-block .comment { color: var(--text-dim); }
+        .code-block .cmd { color: var(--green); }
+        .code-block .flag { color: var(--accent); }
+        .code-block .string { color: var(--yellow); }
+
+        /* Install tabs */
+        .install-tabs { display: flex; gap: 0; margin-bottom: 0; }
+        .install-tab {
+            padding: 10px 20px; background: var(--bg-card); border: 1px solid var(--border);
+            border-bottom: none; border-radius: 8px 8px 0 0; cursor: pointer;
+            color: var(--text-dim); font-size: 0.9rem; transition: all 0.2s;
+        }
+        .install-tab.active { background: var(--bg); color: var(--text); border-bottom-color: var(--bg); }
+        .install-content {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 0 10px 10px 10px;
+            padding: 24px;
+        }
+        .install-panel { display: none; }
+        .install-panel.active { display: block; }
+
+        /* Config example */
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 700px) { .config-grid { grid-template-columns: 1fr; } }
+
+        /* Metrics table */
+        .metrics-table {
+            width: 100%; border-collapse: collapse; margin: 16px 0;
+        }
+        .metrics-table th, .metrics-table td {
+            padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .metrics-table th { color: var(--text-dim); font-weight: 600; }
+        .metrics-table code {
+            background: var(--bg-card); padding: 2px 8px; border-radius: 4px;
+            font-family: 'SF Mono', monospace; font-size: 0.85rem; color: var(--accent);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border); padding: 40px 0; text-align: center;
+            color: var(--text-dim); font-size: 0.85rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        /* Language content */
+        [data-lang="ru"] { display: none; }
+        body.ru [data-lang="en"] { display: none; }
+        body.ru [data-lang="ru"] { display: block; }
+        body.ru span[data-lang="ru"],
+        body.ru a[data-lang="ru"] { display: inline; }
+        body.ru span[data-lang="en"],
+        body.ru a[data-lang="en"] { display: none; }
+
+        span[data-lang="ru"], a[data-lang="ru"] { display: none; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="container">
+        <a href="#" class="logo">WARD</a>
+        <div class="nav-links">
+            <a href="#features"><span data-lang="en">Features</span><span data-lang="ru">Возможности</span></a>
+            <a href="#install"><span data-lang="en">Install</span><span data-lang="ru">Установка</span></a>
+            <a href="#config"><span data-lang="en">Config</span><span data-lang="ru">Конфиг</span></a>
+            <a href="#metrics"><span data-lang="en">Metrics</span><span data-lang="ru">Метрики</span></a>
+            <div class="lang-toggle">
+                <button class="active" onclick="setLang('en')">EN</button>
+                <button onclick="setLang('ru')">RU</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="container">
+        <h1>WARD</h1>
+        <p class="subtitle">
+            <span data-lang="en">Lightweight service watchdog for OpenRC. Monitors, auto-restarts, notifies.</span>
+            <span data-lang="ru">Лёгкий сторожевой сервис для OpenRC. Мониторит, перезапускает, уведомляет.</span>
+        </p>
+        <div class="hero-buttons">
+            <a href="https://github.com/vlad-lukyanov/ward/releases/latest" class="btn btn-primary">
+                <span data-lang="en">Download v0.2.0</span>
+                <span data-lang="ru">Скачать v0.2.0</span>
+            </a>
+            <a href="https://github.com/vlad-lukyanov/ward" class="btn btn-secondary">GitHub</a>
+        </div>
+    </div>
+</section>
+
+<section id="features">
+    <div class="container">
+        <h2 class="section-title"><span data-lang="en">Features</span><span data-lang="ru">Возможности</span></h2>
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <h3><span data-lang="en">Auto-restart</span><span data-lang="ru">Автоперезапуск</span></h3>
+                <p><span data-lang="en">Detects failed services via rc-service and restarts them with configurable cooldown and attempt limits.</span><span data-lang="ru">Обнаруживает упавшие сервисы через rc-service и перезапускает с настраиваемым cooldown'ом и лимитом попыток.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡</div>
+                <h3><span data-lang="en">Spiral protection</span><span data-lang="ru">Защита от спирали</span></h3>
+                <p><span data-lang="en">Cooldown between restarts prevents infinite restart loops. Max restart limit per service.</span><span data-lang="ru">Задержка между перезапусками предотвращает бесконечные циклы. Лимит перезапусков на каждый сервис.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Telegram</h3>
+                <p><span data-lang="en">Notifications on restart, failure, and limit exceeded. Just add bot token and chat ID.</span><span data-lang="ru">Уведомления при рестарте, ошибке и превышении лимита. Добавьте токен бота и chat ID.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Prometheus</h3>
+                <p><span data-lang="en">Per-service metrics: status, restart count, failures, cooldowns. /health endpoint included.</span><span data-lang="ru">Метрики по каждому сервису: статус, количество рестартов, ошибки, cooldown. Эндпоинт /health.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3><span data-lang="en">Hot reload</span><span data-lang="ru">Горячая перезагрузка</span></h3>
+                <p><span data-lang="en">SIGHUP reloads config without restart. SIGUSR1 rotates logs without downtime.</span><span data-lang="ru">SIGHUP перезагружает конфиг без перезапуска. SIGUSR1 ротирует логи без даунтайма.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖥</div>
+                <h3>CLI</h3>
+                <p><span data-lang="en">status, list, init commands. PID file, YAML config, logging to file or stdout.</span><span data-lang="ru">Команды status, list, init. PID-файл, YAML-конфиг, логирование в файл или stdout.</span></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="install">
+    <div class="container">
+        <h2 class="section-title"><span data-lang="en">Installation</span><span data-lang="ru">Установка</span></h2>
+
+        <div class="install-tabs">
+            <div class="install-tab active" onclick="switchTab(this, 'tab-go')">
+                <span data-lang="en">Go</span><span data-lang="ru">Из исходников</span>
+            </div>
+            <div class="install-tab" onclick="switchTab(this, 'tab-gentoo')">Gentoo</div>
+            <div class="install-tab" onclick="switchTab(this, 'tab-script')">
+                <span data-lang="en">Script</span><span data-lang="ru">Скрипт</span>
+            </div>
+            <div class="install-tab" onclick="switchTab(this, 'tab-binary')">
+                <span data-lang="en">Binary</span><span data-lang="ru">Бинарник</span>
+            </div>
+        </div>
+        <div class="install-content">
+            <div id="tab-go" class="install-panel active">
+                <div class="code-block">
+<span class="comment"># Build from source</span>
+<span class="cmd">go build</span> <span class="flag">-o</span> ward ./cmd/ward/
+<span class="cmd">sudo install</span> <span class="flag">-m</span> 755 ward /usr/local/bin/ward
+                </div>
+            </div>
+            <div id="tab-gentoo" class="install-panel">
+                <div class="code-block">
+<span class="comment"># 1. Create overlay structure</span>
+<span class="cmd">sudo mkdir</span> <span class="flag">-p</span> /var/db/repos/ward/{app-admin/ward/files,metadata}
+
+<span class="comment"># 2. Create layout.conf</span>
+<span class="cmd">sudo tee</span> /var/db/repos/ward/metadata/layout.conf <span class="flag">&lt;&lt;'EOF'</span>
+<span class="string">masters = gentoo
+auto-sync = false
+repo-name = ward
+thin-manifests = true</span>
+<span class="flag">EOF</span>
+
+<span class="comment"># 3. Copy ebuild and files from repo</span>
+<span class="cmd">cp</span> app-admin/ward/ward-0.2.0.ebuild /var/db/repos/ward/app-admin/ward/
+<span class="cmd">cp</span> app-admin/ward/files/* /var/db/repos/ward/app-admin/ward/files/
+
+<span class="comment"># 4. Register overlay</span>
+<span class="cmd">sudo tee</span> /etc/portage/repos.conf/ward.conf <span class="flag">&lt;&lt;'EOF'</span>
+<span class="string">[ward]
+location = /var/db/repos/ward
+masters = gentoo
+auto-sync = false
+priority = 50</span>
+<span class="flag">EOF</span>
+
+<span class="comment"># 5. Generate manifest and install</span>
+<span class="cmd">cd</span> /var/db/repos/ward/app-admin/ward
+<span class="cmd">sudo ebuild</span> ward-0.2.0.ebuild manifest
+<span class="cmd">emerge</span> app-admin/ward
+                </div>
+            </div>
+            <div id="tab-script" class="install-panel">
+                <div class="code-block">
+<span class="cmd">sudo ./install.sh</span>
+                </div>
+            </div>
+            <div id="tab-binary" class="install-panel">
+                <div class="code-block">
+<span class="comment"># Download from GitHub Releases</span>
+<span class="comment"># https://github.com/vlad-lukyanov/ward/releases/tag/v0.2.0</span>
+
+<span class="cmd">tar xzf</span> ward-v0.2.0-linux-amd64.tar.gz
+<span class="cmd">sudo install</span> <span class="flag">-m</span> 755 ward /usr/local/bin/ward
+                </div>
+            </div>
+        </div>
+
+        <h3 style="margin-top:40px; margin-bottom:16px;">
+            <span data-lang="en">OpenRC Service</span><span data-lang="ru">Сервис OpenRC</span>
+        </h3>
+        <div class="code-block">
+<span class="cmd">sudo rc-update add</span> ward default
+<span class="cmd">sudo rc-service</span> ward start
+<span class="cmd">sudo rc-service</span> ward reload
+<span class="cmd">sudo rc-service</span> ward stop
+        </div>
+    </div>
+</section>
+
+<section id="config">
+    <div class="container">
+        <h2 class="section-title"><span data-lang="en">Configuration</span><span data-lang="ru">Конфигурация</span></h2>
+        <p style="text-align:center; color:var(--text-dim); margin-bottom:24px;">/etc/ward/config.yaml</p>
+        <div class="config-grid">
+            <div>
+                <div class="code-block">
+<span class="string">check_interval:</span> 10s
+<span class="string">log_file:</span> /var/log/ward.log
+
+<span class="string">notification:</span>
+  <span class="string">enabled:</span> <span class="flag">true</span>
+  <span class="string">telegram:</span>
+    <span class="string">bot_token:</span> <span class="string">"123456:ABC-DEF..."</span>
+    <span class="string">chat_id:</span> <span class="string">"-1001234567890"</span>
+
+<span class="string">metrics:</span>
+  <span class="string">enabled:</span> <span class="flag">true</span>
+  <span class="string">listen:</span> <span class="string">":9090"</span>
+
+<span class="string">services:</span>
+  - <span class="string">name:</span> nginx
+    <span class="string">restart_on_fail:</span> <span class="flag">true</span>
+    <span class="string">max_restarts:</span> 3
+    <span class="string">restart_cooldown:</span> 30s
+  - <span class="string">name:</span> redis
+    <span class="string">restart_on_fail:</span> <span class="flag">true</span>
+    <span class="string">max_restarts:</span> 5
+    <span class="string">restart_cooldown:</span> 10s
+                </div>
+            </div>
+            <div>
+                <table class="metrics-table">
+                    <thead>
+                        <tr><th>Parameter</th><th><span data-lang="en">Default</span><span data-lang="ru">По умолчанию</span></th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>check_interval</code></td><td>10s</td></tr>
+                        <tr><td><code>log_file</code></td><td>stdout</td></tr>
+                        <tr><td><code>max_restarts</code></td><td>3</td></tr>
+                        <tr><td><code>restart_cooldown</code></td><td>30s</td></tr>
+                        <tr><td><code>restart_on_fail</code></td><td>false</td></tr>
+                        <tr><td><code>notification.enabled</code></td><td>false</td></tr>
+                        <tr><td><code>metrics.enabled</code></td><td>false</td></tr>
+                        <tr><td><code>metrics.listen</code></td><td>:9090</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="metrics">
+    <div class="container">
+        <h2 class="section-title"><span data-lang="en">Prometheus Metrics</span><span data-lang="ru">Метрики Prometheus</span></h2>
+        <p style="text-align:center; color:var(--text-dim); margin-bottom:24px;">
+            <code style="background:var(--bg-card); padding:4px 10px; border-radius:4px; font-family:monospace;">GET /metrics</code>
+            &nbsp;&nbsp;
+            <code style="background:var(--bg-card); padding:4px 10px; border-radius:4px; font-family:monospace;">GET /health</code>
+        </p>
+        <table class="metrics-table">
+            <thead>
+                <tr><th><span data-lang="en">Metric</span><span data-lang="ru">Метрика</span></th><th><span data-lang="en">Description</span><span data-lang="ru">Описание</span></th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>ward_service_status</code></td><td><span data-lang="en">Current status (1=running, 0=stopped)</span><span data-lang="ru">Текущий статус (1=работает, 0=остановлен)</span></td></tr>
+                <tr><td><code>ward_service_restarts_total</code></td><td><span data-lang="en">Total restarts</span><span data-lang="ru">Общее количество перезапусков</span></td></tr>
+                <tr><td><code>ward_service_restart_failures_total</code></td><td><span data-lang="en">Failed restarts</span><span data-lang="ru">Неудачные перезапуски</span></td></tr>
+                <tr><td><code>ward_service_restart_count</code></td><td><span data-lang="en">Current restart count</span><span data-lang="ru">Текущее количество перезапусков</span></td></tr>
+                <tr><td><code>ward_service_max_restarts</code></td><td><span data-lang="en">Configured max restarts</span><span data-lang="ru">Настроенный лимит</span></td></tr>
+                <tr><td><code>ward_service_last_restart_timestamp</code></td><td><span data-lang="en">Unix timestamp of last restart</span><span data-lang="ru">Unix timestamp последнего перезапуска</span></td></tr>
+                <tr><td><code>ward_service_cooldown_seconds</code></td><td><span data-lang="en">Configured cooldown</span><span data-lang="ru">Настроенный cooldown</span></td></tr>
+                <tr><td><code>ward_service_restart_on_fail</code></td><td><span data-lang="en">Auto-restart enabled</span><span data-lang="ru">Автоперезапуск включен</span></td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p>WARD v0.2.0 &mdash; MIT License</p>
+        <p style="margin-top:8px;">
+            <a href="https://github.com/vlad-lukyanov/ward">GitHub</a> &middot;
+            <a href="https://github.com/vlad-lukyanov/ward/releases">Releases</a>
+        </p>
+    </div>
+</footer>
+
+<script>
+function setLang(lang) {
+    document.body.classList.toggle('ru', lang === 'ru');
+    document.querySelectorAll('.lang-toggle button').forEach(b => {
+        b.classList.toggle('active', b.textContent.trim() === lang.toUpperCase());
+    });
+    document.documentElement.lang = lang;
+}
+
+function switchTab(el, id) {
+    document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.install-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(id).classList.add('active');
+}
+</script>
+
+</body>
+</html>
