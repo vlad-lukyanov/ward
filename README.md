@@ -1,5 +1,7 @@
 # WARD
 
+[English](README.md) | [Русский](README_ru.md)
+
 **WARD Assists Restarting Daemons** — lightweight service watchdog for OpenRC.
 
 Periodically checks service status via `rc-service` and automatically restarts failed services with configurable cooldown and max restart limits.
