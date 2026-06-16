@@ -37,8 +37,75 @@ sudo ./install.sh
 
 ### Using ebuild (Gentoo overlay)
 
+#### Adding the overlay
+
+1. Create the overlay directory structure:
+
+```sh
+sudo mkdir -p /var/db/repos/ward/{app-admin/ward/files,metadata}
+```
+
+2. Create `layout.conf`:
+
+```sh
+sudo tee /var/db/repos/ward/metadata/layout.conf <<'EOF'
+masters = gentoo
+auto-sync = false
+repo-name = ward
+thin-manifests = true
+EOF
+```
+
+3. Copy the ebuild and auxiliary files from the repository:
+
+```sh
+# From the cloned repository
+cp app-admin/ward/ward-0.1.0.ebuild /var/db/repos/ward/app-admin/ward/
+cp app-admin/ward/files/* /var/db/repos/ward/app-admin/ward/files/
+```
+
+4. Register the overlay in portage:
+
+```sh
+sudo tee /etc/portage/repos.conf/ward.conf <<'EOF'
+[ward]
+location = /var/db/repos/ward
+masters = gentoo
+auto-sync = false
+priority = 50
+EOF
+```
+
+5. Generate the Manifest:
+
+```sh
+cd /var/db/repos/ward/app-admin/ward
+sudo ebuild ward-0.1.0.ebuild manifest
+```
+
+6. Install:
+
 ```sh
 emerge app-admin/ward
+```
+
+#### Service management
+
+```sh
+# Add to autostart
+sudo rc-update add ward default
+
+# Start
+sudo rc-service ward start
+
+# Stop
+sudo rc-service ward stop
+
+# Reload configuration
+sudo rc-service ward reload
+
+# Check status
+ward status
 ```
 
 ## Configuration

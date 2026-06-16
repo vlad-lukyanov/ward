@@ -37,8 +37,75 @@ sudo ./install.sh
 
 ### Через ebuild (Gentoo overlay)
 
+#### Добавление оверлея
+
+1. Создайте структуру оверлея:
+
+```sh
+sudo mkdir -p /var/db/repos/ward/{app-admin/ward/files,metadata}
+```
+
+2. Создайте `layout.conf`:
+
+```sh
+sudo tee /var/db/repos/ward/metadata/layout.conf <<'EOF'
+masters = gentoo
+auto-sync = false
+repo-name = ward
+thin-manifests = true
+EOF
+```
+
+3. Скопируйте ebuild и вспомогательные файли из репозитория:
+
+```sh
+# Из клонированного репозитория
+cp app-admin/ward/ward-0.1.0.ebuild /var/db/repos/ward/app-admin/ward/
+cp app-admin/ward/files/* /var/db/repos/ward/app-admin/ward/files/
+```
+
+4. Зарегистрируйте оверлей в portage:
+
+```sh
+sudo tee /etc/portage/repos.conf/ward.conf <<'EOF'
+[ward]
+location = /var/db/repos/ward
+masters = gentoo
+auto-sync = false
+priority = 50
+EOF
+```
+
+5. Сгенерируйте Manifest:
+
+```sh
+cd /var/db/repos/ward/app-admin/ward
+sudo ebuild ward-0.1.0.ebuild manifest
+```
+
+6. Установите:
+
 ```sh
 emerge app-admin/ward
+```
+
+#### Управление сервисом
+
+```sh
+# Добавить в автозапуск
+sudo rc-update add ward default
+
+# Запустить
+sudo rc-service ward start
+
+# Остановить
+sudo rc-service ward stop
+
+# Перезагрузить конфигурацию
+sudo rc-service ward reload
+
+# Проверить статус
+ward status
 ```
 
 ## Конфигурация
